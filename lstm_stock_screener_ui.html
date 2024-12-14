@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Price Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .chart-container {
+            flex: 2;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-container {
+            flex: 1;
+            max-width: 300px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 95%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #25eb07;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-container">
+        <div class="chart-container">
+            <h1>Stock Price Line Plot</h1>
+            <canvas id="lineChart" width="400" height="300"></canvas>
+        </div>
+
+        <div class="form-container">
+            <h1>Stock Price Prediction</h1>
+            <label for="ticker">Enter Stock Ticker:</label>
+            <input type="text" id="ticker" placeholder="ticker symbol e.g., AAPL, VOO">
+            <button id="predictBtn">Predict Prices</button>
+            <div id="output" class="result"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.getElementById('predictBtn').addEventListener('click', async () => {
+            const ticker = document.getElementById('ticker').value.trim();
+            const output = document.getElementById('output');
+            const canvas = document.getElementById('lineChart').getContext('2d');
+
+            if (!ticker) {
+                output.innerHTML = '<p class="error">Please enter a stock ticker.</p>';
+                return;
+            }
+
+            output.innerHTML = 'Loading...';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ticker })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch predictions.');
+                }
+
+                const data = await response.json();
+                const predictions = data.predictions;
+
+                output.innerHTML = `
+                    <h3>Prediction Complete</h3>
+                `;
+
+                //prepare the variables for the line plot
+                const labels = predictions.map((_, index) => `Day ${index + 1}`); // Days
+                const chartData = predictions; // Prices
+
+                // line plot
+                if (window.lineChartInstance) {
+                    // terminating existing line plots if applicable
+                    window.lineChartInstance.destroy();
+                }
+
+                window.lineChartInstance = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `Predicted Prices for ${data.ticker}`,
+                            data: chartData,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Days'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Predicted Price ($)'
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                output.innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+
+</html>
